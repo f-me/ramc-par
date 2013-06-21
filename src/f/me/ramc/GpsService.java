@@ -1,21 +1,28 @@
 package f.me.ramc;
 
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import org.apache.http.HttpVersion;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPut;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
+import org.apache.http.protocol.HTTP;
 
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -24,6 +31,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.widget.Toast;
@@ -73,42 +81,58 @@ public class GpsService extends Service {
 	
 		msgIntent.putExtra("locationInfo", locationInfo);		
 
-    	String partnerId = getResources().getString(R.string.partner_id);
-    	String msg = putLocation(
-    			loc,
-    			getResources().getString(R.string.ramc_url) + partnerId);
-    	
-    	if (msg == null || msg.length() == 0) {
-        	msg = putLocation(
-        		loc,
-        		getResources().getString(R.string.test_url) + partnerId);
-    	}
-    	
-    	if (msg != null && msg.length() != 0) {
-    		msgIntent.putExtra("message", msg);
-    	}
-    	sendBroadcast(msgIntent);
+    	new SendToRAMC().execute(loc);
 	}
-    
-    private String putLocation(Location loc, String url) {
-    	List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(1);
-        nameValuePairs.add(new BasicNameValuePair(
-        		"lon",String.format(Locale.US, "%.7f", loc.getLongitude())));
-        nameValuePairs.add(new BasicNameValuePair(
-        		"lat",String.format(Locale.US, "%.7f", loc.getLatitude())));
-        try {
-        	HttpClient http = new DefaultHttpClient();
-            HttpPut put = new HttpPut(url);
 
-        	put.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-            ResponseHandler<String> responseHandler=new BasicResponseHandler();
-            return http.execute(put, responseHandler);
-        } catch (Throwable e) {
-        	e.printStackTrace();
-        }
-        return "";
+    private class SendToRAMC extends AsyncTask<Location, Void, String> {
+
+		@Override
+		protected String doInBackground(Location... locs) {
+			try {
+				// Create a KeyStore containing our trusted CAs
+				KeyStore keystore = KeyStore.getInstance("PKCS12");
+				keystore.load(getResources().openRawResource(R.raw.keystore), "".toCharArray());
+	
+				SSLSocketFactory sslSocketFactory = new AdditionalKeyStoresSSLSocketFactory(keystore);
+	
+				HttpParams params = new BasicHttpParams();
+		        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+		        HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
+	
+		        final SchemeRegistry registry = new SchemeRegistry();
+		        registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+		        registry.register(new Scheme("https", sslSocketFactory, 40444));
+	
+				ThreadSafeClientConnManager manager = new ThreadSafeClientConnManager(params, registry);
+				DefaultHttpClient http = new DefaultHttpClient(manager, params);
+				
+				String partnerId = getResources().getString(R.string.partner_id);
+		    	String url = getResources().getString(R.string.ramc_url) + partnerId;
+				HttpPut put = new HttpPut(url);
+
+				Location loc = locs[0];
+				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(1);
+		        nameValuePairs.add(new BasicNameValuePair(
+		        		"lon",String.format(Locale.US, "%.7f", loc.getLongitude())));
+		        nameValuePairs.add(new BasicNameValuePair(
+		        		"lat",String.format(Locale.US, "%.7f", loc.getLatitude())));
+	        	put.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+	            ResponseHandler<String> responseHandler=new BasicResponseHandler();
+	            return http.execute(put, responseHandler);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return "";
+		}
+    	
+		@Override
+		protected void onPostExecute(String msg) {
+			if (msg != null && msg.length() != 0) {
+	    		msgIntent.putExtra("message", msg);
+	    	}
+	    	sendBroadcast(msgIntent);
+		}
     }
-
     
     public class MyLocationListener implements LocationListener {
         
@@ -161,21 +185,6 @@ public class GpsService extends Service {
                 "Остановлена служба RAMC GPS",
                 Toast.LENGTH_SHORT).show();
     }
-
-
-    private void showNotification(String text) {
-    	NotificationManager mNM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
-        Notification notification = new Notification(R.drawable.ic_notify,
-                        text, System.currentTimeMillis());
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                        new Intent(this, MainActivity.class), 0);
-        notification.setLatestEventInfo(this, "RAMC",
-                        text, contentIntent);
-        notification.flags |= Notification.FLAG_AUTO_CANCEL;
-        mNM.notify(0, notification);
-    }
-
         
     @Override
     public IBinder onBind(Intent intent) {
