@@ -92,19 +92,22 @@ public class GpsService extends Service {
 				// Create a KeyStore containing our trusted CAs
 				KeyStore keystore = KeyStore.getInstance("PKCS12");
 				keystore.load(getResources().openRawResource(R.raw.keystore), "".toCharArray());
-	
+				
 				SSLSocketFactory sslSocketFactory = new AdditionalKeyStoresSSLSocketFactory(keystore);
-	
+				// use this for test servers
+				//sslSocketFactory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+				
 				HttpParams params = new BasicHttpParams();
 		        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
 		        HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
-	
+		        HttpProtocolParams.setUseExpectContinue(params, true);
+		        
 		        final SchemeRegistry registry = new SchemeRegistry();
 		        registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
 		        registry.register(new Scheme("https", sslSocketFactory, 40444));
-	
+		        
 				ThreadSafeClientConnManager manager = new ThreadSafeClientConnManager(params, registry);
-				DefaultHttpClient http = new DefaultHttpClient(manager, params);
+				DefaultHttpClient httpclient = new DefaultHttpClient(manager, params);
 				
 				String partnerId = getResources().getString(R.string.partner_id);
 		    	String url = getResources().getString(R.string.ramc_url) + partnerId;
@@ -118,7 +121,7 @@ public class GpsService extends Service {
 		        		"lat",String.format(Locale.US, "%.7f", loc.getLatitude())));
 	        	put.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 	            ResponseHandler<String> responseHandler=new BasicResponseHandler();
-	            return http.execute(put, responseHandler);
+	            return httpclient.execute(put, responseHandler);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
