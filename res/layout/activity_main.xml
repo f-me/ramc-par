@@ -1,15 +1,35 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent" >
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:orientation="vertical">
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="16dp"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:gravity="center_vertical"
+            android:text="@string/current_status"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+        <ToggleButton
+	        android:id="@+id/isFreeToggleButton"
+	        android:layout_width="96dp"
+	        android:layout_height="wrap_content"
+	        android:layout_marginLeft="16dp"
+	        android:textOn="@string/partner_free"
+	        android:textOff="@string/partner_busy"/>
+    </LinearLayout>
 
     <TextView
         android:id="@+id/textNotification"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentTop="true"
         android:text=""
         android:textAppearance="?android:attr/textAppearanceSmall" />
 
@@ -17,9 +37,6 @@
         android:id="@+id/textLocation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_below="@+id/textNotification"
         android:text=""
         android:textAppearance="?android:attr/textAppearanceSmall" />
 
@@ -27,11 +44,7 @@
         android:id="@+id/textMessage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_below="@+id/textLocation"
         android:text=""
         android:textAppearance="?android:attr/textAppearanceMedium" />
 
-</RelativeLayout>
+</LinearLayout>

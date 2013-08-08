@@ -33,12 +33,23 @@ import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
+import android.os.Messenger;
 import android.widget.Toast;
 
 public class GpsService extends Service {
+	/** Commands to the GpsService */
+	
+	// Toggle Busy/Free option for partner
+	public static final String CMD_BUSY_FREE = "CMD_BUSY_FREE";
+	
+	final Messenger cmdHandler = new Messenger(new IncomingHandler());
+	
 	private LocationManager locMan;
     private LocationListener locListener;
+    private boolean isFree = true;
     
     private static long  minTimeMillis = 2000;
     public static final String BROADCAST_ACTION = "f.me.ramc.GpsService.message";
@@ -96,7 +107,7 @@ public class GpsService extends Service {
 				SSLSocketFactory sslSocketFactory = new AdditionalKeyStoresSSLSocketFactory(keystore);
 				// use this for test servers
 				//sslSocketFactory.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-				
+
 				HttpParams params = new BasicHttpParams();
 		        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
 		        HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
@@ -108,7 +119,7 @@ public class GpsService extends Service {
 		        
 				ThreadSafeClientConnManager manager = new ThreadSafeClientConnManager(params, registry);
 				DefaultHttpClient httpclient = new DefaultHttpClient(manager, params);
-				
+		        
 				String partnerId = getResources().getString(R.string.partner_id);
 		    	String url = getResources().getString(R.string.ramc_url) + partnerId;
 				HttpPut put = new HttpPut(url);
@@ -119,6 +130,8 @@ public class GpsService extends Service {
 		        		"lon",String.format(Locale.US, "%.7f", loc.getLongitude())));
 		        nameValuePairs.add(new BasicNameValuePair(
 		        		"lat",String.format(Locale.US, "%.7f", loc.getLatitude())));
+		        nameValuePairs.add(new BasicNameValuePair(
+		        		"isFree",String.valueOf(isFree)));
 	        	put.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 	            ResponseHandler<String> responseHandler=new BasicResponseHandler();
 	            return httpclient.execute(put, responseHandler);
@@ -133,6 +146,7 @@ public class GpsService extends Service {
 			if (msg != null && msg.length() != 0) {
 	    		msgIntent.putExtra("message", msg);
 	    	}
+			msgIntent.putExtra("isFree", isFree);
 	    	sendBroadcast(msgIntent);
 		}
     }
@@ -191,6 +205,21 @@ public class GpsService extends Service {
         
     @Override
     public IBinder onBind(Intent intent) {
-            return null;
+            return cmdHandler.getBinder();
+    }
+    
+    public boolean setFree(boolean isFree) {
+    	this.isFree = isFree;
+    	return this.isFree;
+    }
+    
+    /**
+     * Handler of incoming commands.
+     */
+    class IncomingHandler extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+        	setFree(msg.getData().getBoolean(GpsService.CMD_BUSY_FREE, true));
+        }
     }
 }
