@@ -6,6 +6,8 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.provider.Settings;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.ToggleButton;
@@ -153,4 +155,23 @@ public class MainActivity extends Activity {
 			e.printStackTrace();
 		}
     }
+    
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.menu_info:
+            	Intent intent = new Intent(this, InfoActivity.class);
+            	startActivity(intent);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+    
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		getMenuInflater().inflate(R.menu.activity_main, menu);
+		return true;
+	}
 }
