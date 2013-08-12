@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">RAMC</string>
+    <string name="app_name">Мобильный Партнёр РАМК</string>
     <string name="menu_info">Информация</string>
-    <string name="title_activity_main">RAMC</string>
+    <string name="title_activity_main">Мобильный Партнёр РАМК</string>
     <string name="service_name">GpsService</string>
     <string name="ramc_url">https://gps.ruamc.ru:40444/geo/partner/</string>
     <string name="test_url">http://f-me.dyndns.org:40443/geo/partner/</string>
