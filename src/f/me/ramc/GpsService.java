@@ -26,6 +26,7 @@ import org.apache.http.protocol.HTTP;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
@@ -113,13 +114,18 @@ public class GpsService extends Service {
 		        HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
 		        HttpProtocolParams.setUseExpectContinue(params, true);
 		        
+		        PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+				String userAgent = "ramc-par" + "/" + pInfo.versionName +
+									" (rv:" + String.valueOf(pInfo.versionCode) + "; " + "Android)";
+		        HttpProtocolParams.setUserAgent(params, userAgent);
+
 		        final SchemeRegistry registry = new SchemeRegistry();
 		        registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
 		        registry.register(new Scheme("https", sslSocketFactory, 40444));
 		        
 				ThreadSafeClientConnManager manager = new ThreadSafeClientConnManager(params, registry);
 				DefaultHttpClient httpclient = new DefaultHttpClient(manager, params);
-		        
+
 				String partnerId = getResources().getString(R.string.partner_id);
 		    	String url = getResources().getString(R.string.ramc_url) + partnerId;
 				HttpPut put = new HttpPut(url);
