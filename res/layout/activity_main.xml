@@ -1,14 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:paddingLeft="16dp"
-    android:paddingRight="16dp"
+    android:padding="16dp"
     android:orientation="vertical">
+    
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="16dp"
         android:orientation="horizontal">
         <TextView
             android:layout_width="wrap_content"
@@ -18,33 +18,18 @@
             android:textAppearance="?android:attr/textAppearanceSmall" />
 
         <ToggleButton
-	        android:id="@+id/isFreeToggleButton"
-	        android:layout_width="96dp"
-	        android:layout_height="wrap_content"
-	        android:layout_marginLeft="16dp"
-	        android:textOn="@string/partner_free"
-	        android:textOff="@string/partner_busy"/>
+                android:id="@+id/isFreeToggleButton"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="16dp"
+                android:textOn="@string/partner_free"
+                android:textOff="@string/partner_busy"/>
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/textNotification"
-        android:layout_width="wrap_content"
+    
+    <com.google.android.gms.maps.MapView
+        android:id="@+id/map"
+        android:layout_width="fill_parent" 
         android:layout_height="wrap_content"
-        android:text=""
-        android:textAppearance="?android:attr/textAppearanceSmall" />
-
-    <TextView
-        android:id="@+id/textLocation"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textAppearance="?android:attr/textAppearanceSmall" />
-
-    <TextView
-        android:id="@+id/textMessage"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textAppearance="?android:attr/textAppearanceMedium" />
-
+        android:paddingTop="16dp" />
+    
 </LinearLayout>

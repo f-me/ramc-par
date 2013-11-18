@@ -6,13 +6,20 @@
     <string name="title_activity_main">Мобильный Партнёр РАМК</string>
     <string name="service_name">GpsService</string>
     <string name="ramc_url">https://gps.ruamc.ru:40444/geo/partner/</string>
-    <string name="test_url">http://f-me.dyndns.org:40443/geo/partner/</string>
-    <string name="partner_id">1941</string>
+    <string name="partner_id">2628</string>
     <string name="partner_free">Свободен</string>
     <string name="partner_busy">Занят</string>
     <string name="current_status">Текущее состояние:</string>
     <string name="title_activity_info">Информация</string>
     <string name="action_settings">Settings</string> 
     <string name="title_activity_web_view">Справка</string>
+    <string name="connected">Connected to Location Services</string>
+    <string name="disconnected">Disconnected from Location Services</string>
+    <string name="turn_on_GPS">Кликните чтобы включить GPS</string>
+    <string name="resolved">Error resolved. Please re-try operation.</string>
+    <string name="no_resolution">Google Play services: unable to resolve connection error.</string>
+    <string name="unknown_activity_request_code">
+        Received an unknown activity request code %1$d in onActivityResult.
+    </string>
 
 </resources>
