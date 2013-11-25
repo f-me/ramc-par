@@ -1,24 +1,29 @@
 package f.me.ramc.gps;
 
 import java.security.KeyStore;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.HttpVersion;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.HTTP;
@@ -26,6 +31,7 @@ import org.apache.http.protocol.HTTP;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
@@ -50,6 +56,7 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 
 import f.me.ramc.AdditionalKeyStoresSSLSocketFactory;
+import f.me.ramc.LogActivity;
 import f.me.ramc.MainActivity;
 import f.me.ramc.R;
 
@@ -68,7 +75,16 @@ public class GPSService extends Service implements LocationListener,
 	
 	public static final int MSG_SET_LOCATION = 4;
 	
+	public static final int MSG_LAST_SUCCESS_REQUEST = 5;
+	
+	public static final int MSG_LAST_RESPONSE = 6;
+	
+	public static final String KEY_RESPONSE = "KEY_RESPONSE";
+	
 	public static boolean isFree = true;
+	public static String lastSuccessfulRequest;
+	private int mFailsCounter = 0;
+	private static final int MAX_FAILS = 5;
 	
 	/** Keeps track of all current registered clients. */
     private ArrayList<Messenger> mClients = new ArrayList<Messenger>();
@@ -83,6 +99,7 @@ public class GPSService extends Service implements LocationListener,
 	public void onCreate() {
 		servicesConnected();
 		
+		lastSuccessfulRequest = getApplicationContext().getString(R.string.connection_not_established);
 		mLocationRequest = LocationRequest.create();
 		mLocationRequest.setInterval(LocationUtils.UPDATE_INTERVAL_IN_MILLISECONDS);
 		mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -130,18 +147,6 @@ public class GPSService extends Service implements LocationListener,
 	*/
 	public void onLocationChanged(Location location) {
 		new SendToRAMC().execute(location);
-		
-		for (Messenger client : mClients) {
-            try {
-                client.send(Message.obtain(null,
-                		MSG_SET_LOCATION, location));
-            } catch (RemoteException e) {
-                // The client is dead.  Remove it from the list;
-                // we are going through the list from back to front
-                // so this is safe to do inside the loop.
-                mClients.remove(client);
-            }
-        }
 	}
 	
     /*
@@ -223,10 +228,15 @@ public class GPSService extends Service implements LocationListener,
         }
     }
 	
-    private class SendToRAMC extends AsyncTask<Location, Void, String> {
+    private class SendToRAMC extends AsyncTask<Location, Void, Boolean> {
 
 		@Override
-		protected String doInBackground(Location... locs) {
+		protected Boolean doInBackground(Location... locs) {
+			boolean fails = true;
+			String responseString = "";
+			int messageType = MSG_LAST_RESPONSE;
+			Location loc = locs[0];
+			
 			try {
 				// Create a KeyStore containing our trusted CAs
 				KeyStore keystore = KeyStore.getInstance("PKCS12");
@@ -240,6 +250,13 @@ public class GPSService extends Service implements LocationListener,
 		        HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
 		        HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
 		        HttpProtocolParams.setUseExpectContinue(params, true);
+		        
+		        // Set the timeout in milliseconds until a connection is established.
+		        // The default value is zero, that means the timeout is not used.
+		        HttpConnectionParams.setConnectionTimeout(params, LocationUtils.CONNECTION_TIMEOUT_IN_MILLISECONDS);
+		        // Set the default socket timeout (SO_TIMEOUT) 
+		        // in milliseconds which is the timeout for waiting for data.
+		        HttpConnectionParams.setSoTimeout(params, LocationUtils.SO_TIMEOUT_IN_MILLISECONDS);
 		        
 		        PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
 				String userAgent = "ramc-par" + "/" + pInfo.versionName +
@@ -257,7 +274,6 @@ public class GPSService extends Service implements LocationListener,
 		    	String url = getResources().getString(R.string.ramc_url) + partnerId;
 				HttpPut put = new HttpPut(url);
 
-				Location loc = locs[0];
 				List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(1);
 		        nameValuePairs.add(new BasicNameValuePair(
 		        		"lon",String.format(Locale.US, "%.7f", loc.getLongitude())));
@@ -267,17 +283,69 @@ public class GPSService extends Service implements LocationListener,
 		        		"isFree",String.valueOf(isFree)));
 	        	put.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 	        	
-	            ResponseHandler<String> responseHandler = new BasicResponseHandler();
-	            httpclient.execute(put, responseHandler);
+	            HttpResponse httpresponse = httpclient.execute(put);
+	            responseString = httpresponse.getLastHeader("Date").getValue() + "\n" + httpresponse.getStatusLine().toString();
+	            // 200 OK (HTTP/1.0 - RFC 1945)
+	            if (httpresponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+	            	fails = false;
+	            	lastSuccessfulRequest = responseString;
+        			messageType = MSG_LAST_SUCCESS_REQUEST;
+	            } else {
+	            	fails = true;
+	            	messageType = MSG_LAST_RESPONSE;
+	            }
+	            
+	            manager.shutdown();
 			} catch (Exception e) {
-				e.printStackTrace();
+				messageType = MSG_LAST_RESPONSE;
+				responseString = e.getLocalizedMessage();
+			} finally {
+				Bundle bundle = new Bundle();
+    			bundle.putString(KEY_RESPONSE, responseString);
+    			Message msg = Message.obtain(null, messageType);
+    			msg.setData(bundle);
+				
+				for (Messenger client : mClients) {                    
+	            	try {
+	            		client.send(Message.obtain(null,
+	                    		MSG_SET_LOCATION, loc));
+                        client.send(msg);
+                    } catch (RemoteException e) {
+                        // The client is dead.  Remove it from the list;
+                        // we are going through the list from back to front
+                        // so this is safe to do inside the loop.
+                        mClients.remove(client);
+                    }
+	            }
 			}
-			return locs[0].toString();
+			return fails;
 		}
     	
 		@Override
-		protected void onPostExecute(String msg) {
-			Log.d(LocationUtils.APPTAG, msg);
+		protected void onPostExecute(Boolean fails) {
+			if (fails) {
+				mFailsCounter++;
+				if (mFailsCounter > MAX_FAILS) {
+					Context context = getApplicationContext();
+					Notification notification = new Notification(R.drawable.ic_notify,
+							context.getString(R.string.app_name),
+					        System.currentTimeMillis());
+					Intent notificationIntent = new Intent(context, LogActivity.class);
+					PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, notificationIntent, 0);
+					notification.setLatestEventInfo(context, context.getString(R.string.app_name),
+							context.getString(R.string.network_error), pendingIntent);
+					notification.flags |= Notification.FLAG_AUTO_CANCEL;
+					notification.defaults |= Notification.DEFAULT_SOUND;
+					NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+					nm.notify(0, notification);
+					
+					// request succeeded clear counter
+					mFailsCounter = 0;
+				}
+			} else {
+				// request succeeded clear counter
+				mFailsCounter = 0;
+			}
 		}
     }
 	
@@ -308,6 +376,22 @@ public class GPSService extends Service implements LocationListener,
                         }
                     }
                     break;
+                case MSG_LAST_SUCCESS_REQUEST:
+                	Bundle bundle = new Bundle();
+        			bundle.putString(KEY_RESPONSE, lastSuccessfulRequest);
+        			Message m = Message.obtain(null, MSG_LAST_SUCCESS_REQUEST);
+        			m.setData(bundle);
+    	            for (Messenger client : mClients) {                    
+    	            	try {
+                            client.send(m);
+                        } catch (RemoteException e) {
+                            // The client is dead.  Remove it from the list;
+                            // we are going through the list from back to front
+                            // so this is safe to do inside the loop.
+                            mClients.remove(client);
+                        }
+                    }
+                	break;
                 default:
                     super.handleMessage(msg);
             }

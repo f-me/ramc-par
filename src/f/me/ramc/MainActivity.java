@@ -243,9 +243,14 @@ public class MainActivity extends Activity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
+    	Intent intent;
         switch (item.getItemId()) {
             case R.id.menu_info:
-            	Intent intent = new Intent(this, InfoActivity.class);
+            	intent = new Intent(this, InfoActivity.class);
+            	startActivity(intent);
+                return true;
+            case R.id.menu_log:
+            	intent = new Intent(this, LogActivity.class);
             	startActivity(intent);
                 return true;
             default:

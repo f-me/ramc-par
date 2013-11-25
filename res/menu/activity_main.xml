@@ -3,4 +3,8 @@
         android:title="@string/menu_info"
         android:orderInCategory="100"
         android:icon="@drawable/action_about" />
+    <item android:id="@+id/menu_log"
+        android:title="@string/menu_log"
+        android:orderInCategory="1200"
+        android:icon="@drawable/ic_action_log" />
 </menu>
