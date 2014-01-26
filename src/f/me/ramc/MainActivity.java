@@ -10,13 +10,11 @@ import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.model.LatLng;
 
 import f.me.ramc.gps.GPSService;
+import f.me.ramc.gps.GPSServiceConnection;
+import f.me.ramc.gps.IGPSService;
 import f.me.ramc.gps.LocationUtils;
 import android.location.Location;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-import android.os.Message;
-import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
 import android.view.Menu;
@@ -26,10 +24,10 @@ import android.widget.CompoundButton;
 import android.widget.ToggleButton;
 import android.app.Activity;
 import android.app.Dialog;
-import android.content.ComponentName;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 
 
@@ -39,49 +37,29 @@ public class MainActivity extends Activity {
 	
 	private MapView mMapView;
 	private GoogleMap mMap;
-	
-	private boolean mIsBound = false;
-	private Messenger mService = null;
 	private ToggleButton mIsFreeBtn;
 	
-	private final Messenger mMessenger = new Messenger(new IncomingHandler());
-	
-	private ServiceConnection mConnection = new ServiceConnection() {
-	    public void onServiceConnected(ComponentName className,
-	            IBinder service) {
-	        // This is called when the connection with the service has been
-	        // established, giving us the service object we can use to
-	        // interact with the service.  We are communicating with our
-	        // service through an IDL interface, so get a client-side
-	        // representation of that from the raw service object.
-	        mService = new Messenger(service);
+	private GPSServiceConnection gpsServiceConnection;
 
-	        // We want to monitor the service for as long as we are
-	        // connected to it.
-	        try {
-	        	Message msg = Message.obtain(null,
-	                    GPSService.MSG_REGISTER_CLIENT);
-	            msg.replyTo = mMessenger;
-	            mService.send(msg);
-	            
-	            // Give it some value as an example.
-	            msg = Message.obtain(null,
-	                    GPSService.MSG_SET_IS_FREE, mIsFreeBtn.isChecked() ? 1 : 0, 0);
-	            msg.replyTo = mMessenger;
-	            mService.send(msg);
-	        } catch (RemoteException e) {
-	            // In this case the service has crashed before we could even
-	            // do anything with it; we can count on soon being
-	            // disconnected (and then reconnected if it can be restarted)
-	            // so there is no need to do anything here.
-	        }
-	    }
+	private final Runnable bindChangedCallback = new Runnable() {                 
+		@Override                                                                 
+		public void run() {                                                         
+			// After binding changes (is available), update the Partner status
+			runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					setFree(mIsFreeBtn.isChecked());
+				}
+			});
+		}
+	};
 
-	    public void onServiceDisconnected(ComponentName className) {
-	        // This is called when the connection with the service has been
-	        // unexpectedly disconnected -- that is, its process crashed.
-	        mService = null;
-	    }
+	private BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
+		public void onReceive(Context context, Intent intent) {
+			// Extract data included in the Intent
+			Location loc = (Location) intent.getParcelableExtra(GPSService.LOCATION);
+			mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(loc.getLatitude(), loc.getLongitude())));
+		}
 	};
 	
     @Override
@@ -90,8 +68,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         
-        Intent pushIntent = new Intent(this, GPSService.class);  
-		startService(pushIntent);
+        gpsServiceConnection = new GPSServiceConnection(this, bindChangedCallback);
         
         // Needs to call MapsInitializer before doing any CameraUpdateFactory calls
  		try {
@@ -148,13 +125,12 @@ public class MainActivity extends Activity {
                     case Activity.RESULT_OK:
                         // Log the result
                         Log.d(LocationUtils.APPTAG, getString(R.string.resolved));
-                    break;
+                        break;
 
                     // If any other result was returned by Google Play services
                     default:
                         // Log the result
                         Log.d(LocationUtils.APPTAG, getString(R.string.no_resolution));
-                    break;
                 }
 
             // If any other request code was received
@@ -162,9 +138,17 @@ public class MainActivity extends Activity {
                // Report that this Activity received an unknown requestCode
                Log.d(LocationUtils.APPTAG,
                        getString(R.string.unknown_activity_request_code, requestCode));
-
-               break;
         }
+    }
+    
+    protected void onStart() {
+    	super.onStart();
+    	gpsServiceConnection.startAndBind();
+    }
+    
+    protected void onStop() {
+    	super.onStop();
+    	gpsServiceConnection.unbind();
     }
     
     @Override
@@ -176,13 +160,14 @@ public class MainActivity extends Activity {
     	// Restore preferences
         SharedPreferences settings = getSharedPreferences(RAMC_PAR_PREFS, 0);
         mIsFreeBtn.setChecked(settings.getBoolean("isFree", true));
-        doBindService();
+        
+        registerReceiver(mMessageReceiver, new IntentFilter(GPSService.BROADCAST_LOCATION_INTENT));
     }
     
     @Override
     public void onPause() {
-    	doUnbindService();
-    	// Save preferences
+        unregisterReceiver(mMessageReceiver);
+        // Save preferences
     	SharedPreferences settings = getSharedPreferences(RAMC_PAR_PREFS, 0);
         SharedPreferences.Editor editor = settings.edit();
         editor.putBoolean("isFree", mIsFreeBtn.isChecked());
@@ -190,54 +175,18 @@ public class MainActivity extends Activity {
         if (mMapView != null) {
         	mMapView.onPause();
         }
-        
         super.onPause();
     }
     
     public void setFree(boolean isFree) {
-    	try {
-            Message msg = Message.obtain(null,
-                    GPSService.MSG_SET_IS_FREE, mIsFreeBtn.isChecked() ? 1 : 0, 0);
-            if (mService != null) {
-            	mService.send(msg);
-            }
-        } catch (RemoteException e) {
-            // In this case the service has crashed before we could even
-            // do anything with it; we can count on soon being
-            // disconnected (and then reconnected if it can be restarted)
-            // so there is no need to do anything here.
-        }
-    }
-    
-    void doBindService() {
-        // Establish a connection with the service.  We use an explicit
-        // class name because there is no reason to be able to let other
-        // applications replace our component.
-        bindService(new Intent(this, 
-                GPSService.class), mConnection, Context.BIND_IMPORTANT);
-        mIsBound = true;
-    }
-
-    void doUnbindService() {
-        if (mIsBound) {
-        	// If we have received the service, and hence registered with
-            // it, then now is the time to unregister.
-            if (mService != null) {
-                try {
-                    Message msg = Message.obtain(null,
-                            GPSService.MSG_UNREGISTER_CLIENT);
-                    msg.replyTo = mMessenger;
-                    mService.send(msg);
-                } catch (RemoteException e) {
-                    // There is nothing special we need to do if the service
-                    // has crashed.
-                }
-            }
-        	
-            // Detach our existing connection.
-            unbindService(mConnection);
-            mIsBound = false;
-        }
+    	IGPSService gpsService = gpsServiceConnection.getServiceIfBound();
+    	if (gpsService != null) {
+    		try {
+				gpsService.setFree(isFree);
+			} catch (RemoteException e) {
+				Log.d(LocationUtils.APPTAG, e.getLocalizedMessage());
+			}
+    	}
     }
     
     @Override
@@ -262,26 +211,6 @@ public class MainActivity extends Activity {
 	public boolean onCreateOptionsMenu(Menu menu) {
 		getMenuInflater().inflate(R.menu.activity_main, menu);
 		return true;
-	}
-	
-	/**
-	 * Handler of incoming messages from service.
-	 */
-	class IncomingHandler extends Handler {
-	    @Override
-	    public void handleMessage(Message msg) {
-	        switch (msg.what) {
-	            case GPSService.MSG_SET_IS_FREE:
-	            	mIsFreeBtn.setChecked(msg.arg1 > 0);
-	                break;
-	            case GPSService.MSG_SET_LOCATION:
-	            	Location loc = (Location) msg.obj;
-	            	mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(loc.getLatitude(), loc.getLongitude())));
-	                break;
-	            default:
-	                super.handleMessage(msg);
-	        }
-	    }
 	}
 	
 }

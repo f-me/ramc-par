@@ -7,7 +7,9 @@
     <string name="title_activity_main">Мобильный Партнёр РАМК</string>
     <string name="service_name">GpsService</string>
     <string name="ramc_url">https://gps.ruamc.ru:40444/geo/partner/</string>
-    <string name="partner_id">2628</string>
+    <string name="ramc_ssl_port">40444</string>
+    <string name="ramc_http_port">80</string>
+    <string name="partner_id">2103</string>
     <string name="partner_free">Свободен</string>
     <string name="partner_busy">Занят</string>
     <string name="current_status">Текущее состояние:</string>
@@ -25,8 +27,7 @@
     </string>
     <string name="network_error">Потеряна связь с Интернетом</string>
     <string name="log_last_success">Последнее обновление:</string>
-    <string name="log_errors">Мониторинг неполадок:</string>
+    <string name="log_errors">Мониторинг запросов:</string>
     <string name="connection_not_established">Данные не получены</string>
-    
 
 </resources>

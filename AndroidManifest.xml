@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="f.me.ramc"
-    android:versionCode="5"
-    android:versionName="1.3.1" >
+    android:versionCode="6"
+    android:versionName="1.4.0" >
 
     <uses-sdk
         android:minSdkVersion="8"
@@ -40,6 +40,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="f.me.ramc.BROADCAST_LOCATION_INTENT" />
+            </intent-filter>
         </activity>
         
         <activity
@@ -64,6 +67,9 @@
             android:name="f.me.ramc.LogActivity"
             android:label="@string/title_activity_log"
             android:parentActivityName="f.me.ramc.MainActivity" >
+            <intent-filter>
+                <action android:name="f.me.ramc.BROADCAST_LAST_LOCATION_UPDATE_INTENT" />
+            </intent-filter>
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="f.me.ramc.MainActivity" />
