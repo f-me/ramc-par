@@ -32,6 +32,8 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.location.Location;
 import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import f.me.ramc.AdditionalKeyStoresSSLSocketFactory;
@@ -43,6 +45,7 @@ public class LocationSender {
 	
 	private boolean isFree;
 	private String lastSuccessfulRequest;
+	private Handler handler;
 	
 	private ThreadSafeClientConnManager manager;
 	private HttpParams params;
@@ -57,6 +60,7 @@ public class LocationSender {
 	public LocationSender(Context context) {
 		this.context = context;
 		isFree = true;
+		handler = new Handler(Looper.getMainLooper());
 		lastSuccessfulRequest = context.getString(R.string.connection_not_established);
 		
 		// Create a KeyStore containing our trusted CAs
@@ -107,8 +111,12 @@ public class LocationSender {
 		return lastSuccessfulRequest;
 	}
 	
-	public void send(Location location) {
-		new SendToRAMC().execute(location);
+	public void send(final Location location) {
+		handler.post(new Runnable() {
+			public void run() {
+				new SendToRAMC().execute(location);
+			}
+		});
 	}
 	
 	private class SendToRAMC extends AsyncTask<Location, Void, Boolean> {

@@ -24,7 +24,7 @@ public class GPSServiceConnection {
 	private final ServiceConnection serviceConnection = new ServiceConnection() {
 		
 		public void onServiceConnected(ComponentName className, IBinder service) {
-			Log.i(TAG, "Connected to the service.");
+			Log.d(TAG, "Connected to the service.");
 			try {
 				service.linkToDeath(deathRecipient, 0);
 			} catch (RemoteException e) {
@@ -34,7 +34,7 @@ public class GPSServiceConnection {
 		}
 
 		public void onServiceDisconnected(ComponentName className) {
-			Log.i(TAG, "Disconnected from the service.");
+			Log.d(TAG, "Disconnected from the service.");
 			setGPSService(null);
 		}
 	};
@@ -111,11 +111,11 @@ public class GPSServiceConnection {
 		}
 
 		if (startIfNeeded) {
-			Log.i(TAG, "Starting the service.");
+			Log.d(TAG, "Starting the service.");
 			context.startService(new Intent(context, GPSService.class));
 		}
 
-		Log.i(TAG, "Binding the service.");
+		Log.d(TAG, "Binding the service.");
 		context.bindService(new Intent(context, GPSService.class), serviceConnection, 0);
 	}
 
