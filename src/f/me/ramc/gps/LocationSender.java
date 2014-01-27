@@ -126,7 +126,6 @@ public class LocationSender {
 			boolean fails = true;
 			String responseString = "";
 			Location loc = locs[0];
-			
 			try {
 				DefaultHttpClient httpclient = new DefaultHttpClient(manager, params);
 				
@@ -142,7 +141,7 @@ public class LocationSender {
 		        nameValuePairs.add(new BasicNameValuePair(
 		        		"isFree",String.valueOf(isFree)));
 	        	put.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-	        	
+
 	            HttpResponse httpresponse = httpclient.execute(put);
 	            responseString = httpresponse.getLastHeader("Date").getValue() + "\n" + httpresponse.getStatusLine().toString();
 	            // 200 OK (HTTP/1.0 - RFC 1945)
@@ -156,6 +155,9 @@ public class LocationSender {
 	            httpresponse.getEntity().getContent().close();
 			} catch (Exception e) {
 				responseString = e.getLocalizedMessage();
+				if (responseString == null) {
+					responseString = context.getString(R.string.network_error);
+				}
 				Log.d(TAG, responseString);
 			} finally {
 				broadcastLocationUpdateState(responseString);
