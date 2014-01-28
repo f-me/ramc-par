@@ -66,6 +66,7 @@ public class GPSService extends Service {
 	@Override
 	public void onCreate() {
 		super.onCreate();
+		acquireWaleLock();
 		locationSender = new LocationSender(this);
 		executorService = Executors.newSingleThreadExecutor();
 		handler = new Handler();
@@ -133,6 +134,7 @@ public class GPSService extends Service {
 		}
 		locationSender.send(location);
 		broadcastLocation(location);
+		Log.d(TAG, location.toString());
 	}
 
 	/**
@@ -192,7 +194,7 @@ public class GPSService extends Service {
 	 * Starts gps.
 	 */
 	private void startGps() {
-		wakeLock = SystemUtils.acquireWakeLock(this, wakeLock);
+		acquireWaleLock();
 		registerLocationListener();
 	}
 
@@ -208,6 +210,13 @@ public class GPSService extends Service {
 		if (stop) {
 			stopSelf();
 		}
+	}
+
+	/**
+	 *  Acquire the wake lock.
+	 */
+	private void acquireWaleLock() {
+		wakeLock = SystemUtils.acquireWakeLock(this, wakeLock);
 	}
 
 	/**

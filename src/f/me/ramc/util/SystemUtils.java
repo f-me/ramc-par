@@ -26,7 +26,7 @@ public class SystemUtils {
 	 */
 	@SuppressLint("Wakelock")
 	public static WakeLock acquireWakeLock(Context context, WakeLock wakeLock) {
-		Log.i(TAG, "Acquiring wake lock.");
+		Log.d(TAG, "Acquiring wake lock.");
 		try {
 			PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
 			if (powerManager == null) {
